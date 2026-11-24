@@ -72,6 +72,9 @@ aidns_write_resolved_with_dns() {
 
   local tmp
   tmp="$(mktemp)"
+  # Drop previous AIDNS block and any active keys we manage so the AIDNS
+  # values at the end of [Resolve] are the ones systemd-resolved uses.
+  # DNSOverTLS=yes / DNSSEC=yes break plain UDP smart DNS (no DoT/DNSSEC).
   awk '
     BEGIN { skip=0 }
     /^# AIDNS-begin$/ { skip=1; next }
@@ -81,22 +84,29 @@ aidns_write_resolved_with_dns() {
     /^[[:space:]]*DNS=/ { next }
     /^[[:space:]]*FallbackDNS=/ { next }
     /^[[:space:]]*Domains=/ { next }
+    /^[[:space:]]*DNSOverTLS=/ { next }
+    /^[[:space:]]*DNSSEC=/ { next }
     { print }
   ' "$conf" >"$tmp"
 
+  # Keep a single [Resolve] section: only create it when the file has none.
+  # AIDNS lines are appended into that section (no second [Resolve] header).
   if ! grep -q '^\[Resolve\]' "$tmp"; then
     printf '\n[Resolve]\n' >>"$tmp"
   fi
 
   {
     printf '\n%s\n' "$AIDNS_RESOLVED_BEGIN"
-    printf '[Resolve]\n'
     printf 'DNS=%s\n' "$dns_line"
     printf 'FallbackDNS=\n'
     printf 'Domains=~.\n'
+    printf 'DNSOverTLS=no\n'
+    printf 'DNSSEC=no\n'
     printf '%s\n' "$AIDNS_RESOLVED_END"
   } >>"$tmp"
 
+  # mktemp creates 0600; systemd expects a world-readable resolved.conf (0644).
+  chmod 644 "$tmp"
   mv -f "$tmp" "$conf"
 }
 
@@ -156,6 +166,7 @@ aidns_restore_resolved() {
     /^# AIDNS-end$/ { skip=0; next }
     skip==0 { print }
   ' "$AIDNS_RESOLVED_CONF" >"$tmp"
+  chmod 644 "$tmp"
   mv -f "$tmp" "$AIDNS_RESOLVED_CONF"
   aidns_reload_resolved
   return 0

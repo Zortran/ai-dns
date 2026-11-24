@@ -43,6 +43,11 @@ aidns_dead_dns_recovery() {
   fi
 }
 
+# Sets AIDNS_VERIFY_WORKING (int) and AIDNS_VERIFY_FAILED (comma-separated names).
+# Status lines go to the terminal; do not capture stdout of this function.
+AIDNS_VERIFY_WORKING=0
+AIDNS_VERIFY_FAILED=""
+
 aidns_verify_system() {
   local -a gating
   mapfile -t gating < <(aidns_gating_ids)
@@ -60,10 +65,14 @@ aidns_verify_system() {
     ips="$(aidns_system_resolve "$domain")"
     if [[ -z "$ips" ]]; then
       aidns_warn "Verify.Fails" "$name" "$(aidns_text Verdict.DnsNoAnswer timeout)"
+      local mode
+      mode="$(aidns_service_field "$row" 1)"
+      if [[ "$mode" == "Required" ]]; then
+        required_failed+=("$name")
+      fi
       continue
     fi
     local addr="${ips%%,*}"
-    # Store fake DNS result for system and run HTTPS + verdict under key system|
     AIDNS_DNS_RESULT["system|$sid"]="1|None|$ips|0"
     AIDNS_CAND_ALIVE["system"]=1
     local check
@@ -89,16 +98,11 @@ aidns_verify_system() {
       AIDNS_HTTPS_RESULT["$key"]="$(cat "$out")"
       rm -f "$out"
     done
-    # Build a synthetic service row evaluation using ip=system
-    # Temporarily point candidate dns for this sid
-    local saved="${AIDNS_DNS_RESULT[$addr|$sid]:-}"
-    AIDNS_DNS_RESULT["$addr|$sid"]="1|None|$ips|0"
-    # evaluate using address as "candidate"
     local fake_ip="$addr"
     AIDNS_DNS_RESULT["$fake_ip|$sid"]="1|None|$ips|0"
     aidns_test_service_access "$fake_ip" "$row"
     local v="${AIDNS_VERDICT[$fake_ip|$sid]:-}"
-    local ok reason
+    local ok reason rest
     IFS='|' read -r ok reason rest <<<"$v"
     local text
     # shellcheck disable=SC2086
@@ -115,7 +119,13 @@ aidns_verify_system() {
       required_failed+=("$name")
     fi
   done
-  printf "%s %s\n" "$working" "$(IFS=','; echo "${required_failed[*]:-}")"
+  AIDNS_VERIFY_WORKING="$working"
+  if [[ ${#required_failed[@]} -gt 0 ]]; then
+    local IFS=','
+    AIDNS_VERIFY_FAILED="${required_failed[*]}"
+  else
+    AIDNS_VERIFY_FAILED=""
+  fi
 }
 
 aidns_enable() {
@@ -321,10 +331,12 @@ aidns_enable() {
   fi
   aidns_flush_dns_cache
   sleep 1
-  local verify_out working failed
-  verify_out="$(aidns_verify_system)"
-  working="$(echo "$verify_out" | awk '{print $1}')"
-  failed="$(echo "$verify_out" | awk '{print $2}')"
+  AIDNS_VERIFY_WORKING=0
+  AIDNS_VERIFY_FAILED=""
+  aidns_verify_system
+  local working="${AIDNS_VERIFY_WORKING:-0}"
+  local failed="${AIDNS_VERIFY_FAILED:-}"
+  [[ "$working" =~ ^[0-9]+$ ]] || working=0
 
   printf "\n"
   if [[ "$AIDNS_ERRORS" -eq 0 && "$working" -gt 0 && -z "$failed" ]]; then

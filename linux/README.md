@@ -45,7 +45,7 @@ sudo ./ai-dns.sh --action Disable --full
 
 | Настройка | Enable | Disable |
 |---|---|---|
-| `/etc/systemd/resolved.conf` | блок `# AIDNS-begin` … `# AIDNS-end` с `DNS=`, `FallbackDNS=`, `Domains=~.` | восстановление из `/var/lib/aidns/resolved.conf.bak` или удаление блока |
+| `/etc/systemd/resolved.conf` | блок `# AIDNS-begin` … `# AIDNS-end`: `DNS=`, `FallbackDNS=`, `Domains=~.`, `DNSOverTLS=no`, `DNSSEC=no` (активные одноименные ключи вне блока убираются) | восстановление из `/var/lib/aidns/resolved.conf.bak` или удаление блока |
 | `/etc/hosts` | конфликтующие записи комментируются `# AIDNS-disabled:` | раскомментируются (`--full` удаляет) |
 | IPv6 (sysctl) | при `system.disableIpv6` — `net.ipv6.conf.all.disable_ipv6=1` | возврат, если выключал AI-DNS (или `--enable-ipv6`) |
 | `/var/lib/aidns` | backup, state, cache, logs | удаляется |
