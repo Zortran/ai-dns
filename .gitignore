@@ -2,8 +2,12 @@
 tests/manual/logs/
 
 # Personal settings saved by AI-DNS-Settings.bat, and release archives built by tools/Build-Release.ps1.
-settings.json
+/settings.json
 dist/
+
+# Linux port local fallbacks when /var/lib/aidns is not writable (test-only / Status).
+linux/cache/
+linux/logs/
 
 # Pester and editor output.
 testResults.xml

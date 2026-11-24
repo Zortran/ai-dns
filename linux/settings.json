@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "language": "Auto",
+  "logDirectory": "",
+  "waitSeconds": 20,
+  "checkUpdates": false,
+  "flags": {
+    "testOnly": false,
+    "dryRun": false,
+    "trace": false,
+    "offline": false,
+    "full": false,
+    "enableIPv6": false
+  },
+  "system": {
+    "disableIpv6": true,
+    "hosts": true
+  },
+  "modes": {
+    "chatgpt": "Required",
+    "claude": "Required",
+    "gemini": "Preferred",
+    "openai-api": "Preferred",
+    "anthropic-api": "Preferred",
+    "gemini-api": "Preferred",
+    "code-login": "Preferred",
+    "code-site": "Preferred",
+    "code-updates": "Preferred"
+  },
+  "customServices": [],
+  "customResolvers": [],
+  "blockedProviders": [],
+  "blockedAddresses": [],
+  "pinnedProvider": ""
+}
